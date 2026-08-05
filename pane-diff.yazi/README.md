@@ -6,16 +6,16 @@ Yazi の `terrakok/split-tabs.yazi` で表示した2ペインのカーソル位�
 
 | 依存関係 | 必須条件 |
 | --- | --- |
-| OS | Windows 11（初期対象） |
+| 対象環境 | Git Bash または WSL（Yazi と Git を同じ環境で実行） |
 | Yazi | 26.5.6 以上 |
 | `ya` | Yazi と同じバージョン（`split-tabs.yazi` の導入に使用） |
 | `terrakok/split-tabs.yazi` | 2ペイン表示に必須 |
-| Git | `git` コマンドが PATH にあり、外部 difftool が設定済み |
+| Git | Yazi と同じ環境の `git` が PATH にあり、外部 difftool が設定済み |
 | Lua | 実行時は不要。リポジトリのモックテスト実行時のみ必要 |
 
 最低限、次のコマンドが成功することを確認してください。
 
-```powershell
+```bash
 yazi --version
 ya --version
 git --version
@@ -30,39 +30,47 @@ Yazi 26.5.6 の公式 API と `split-tabs.yazi` の現行実装を基準にし�
 
 Yazi の `ya` パッケージマネージャーで導入します。
 
-```powershell
+```bash
 ya pkg add terrakok/split-tabs
 ```
 
 ### 2. pane-diff.yazi を導入
 
-リポジトリを取得し、内側の `pane-diff.yazi` ディレクトリを Yazi のプラグインディレクトリへコピーします。
+リポジトリを取得し、内側の `pane-diff.yazi` ディレクトリを、Yazi を実行する環境のプラグインディレクトリへコピーします。
 
-```powershell
+```bash
 git clone https://github.com/hironei/yazi_split_pane_diff_plugin.git
-Set-Location .\yazi_split_pane_diff_plugin
+cd yazi_split_pane_diff_plugin
 
-$pluginDir = Join-Path $env:APPDATA "yazi\config\plugins\pane-diff.yazi"
-New-Item -ItemType Directory -Force $pluginDir | Out-Null
-Copy-Item -Recurse -Force .\pane-diff.yazi\* $pluginDir
+if command -v cygpath >/dev/null 2>&1 && [ -n "${APPDATA:-}" ]; then
+    # Git Bash で Windows 版 Yazi を使う場合
+    yazi_config_dir="$(cygpath -u "$APPDATA")/yazi/config"
+else
+    # WSL で Linux 版 Yazi を使う場合
+    yazi_config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/yazi"
+fi
+
+plugin_dir="$yazi_config_dir/plugins/pane-diff.yazi"
+mkdir -p "$plugin_dir"
+cp -R ./pane-diff.yazi/. "$plugin_dir/"
 ```
 
-Yazi の Windows 用プラグインディレクトリは通常 `%AppData%\yazi\config\plugins\` です。更新時はリポジトリで `git pull` を実行し、同じ `Copy-Item` を再実行してください。
+Git Bash では Windows 版 Yazi の `%AppData%/yazi/config`、WSL では `${XDG_CONFIG_HOME:-$HOME/.config}/yazi` が通常の設定ディレクトリです。更新時はリポジトリで `git pull` を実行し、同じ `cp -R` を再実行してください。
 
 ### 3. インストール確認
 
-次のファイルが存在することを確認します。
+インストール時に使用した `$yazi_config_dir` 配下に、次のファイルが存在することを確認します。
 
 ```text
-%AppData%\yazi\config\plugins\pane-diff.yazi\main.lua
-%AppData%\yazi\config\plugins\split-tabs.yazi\main.lua
+$yazi_config_dir/plugins/pane-diff.yazi/main.lua
+$yazi_config_dir/plugins/split-tabs.yazi/main.lua
 ```
 
 Yazi の設定を変更した後は、Yazi を再起動してください。
 
 ## キーマップ
 
-`%AppData%\yazi\config\keymap.toml` に追加します。
+Yazi を実行する環境の `keymap.toml` に追加します。Git Bash では Windows 版 Yazi の `%AppData%/yazi/config/keymap.toml`、WSL では `${XDG_CONFIG_HOME:-$HOME/.config}/yazi/keymap.toml` が対象です。
 
 ```toml
 [[mgr.prepend_keymap]]
@@ -112,7 +120,10 @@ git difftool --no-index --no-prompt -- <active-file> <other-file>
 
 例えば WinMerge を Git の difftool に設定する場合:
 
-```powershell
+- Git Bash: Windows 側の WinMerge など、Git Bash から起動できるツールを設定します。
+- WSL: WSL 内で起動できる Linux 用 Diff ツールを設定します。Windows 側の実行ファイルを使う場合は、WSL から呼び出せるコマンドを別途用意してください。
+
+```bash
 git config --global diff.tool winmerge
 git config --global difftool.winmerge.cmd '"C:/Program Files/WinMerge/WinMergeU.exe" "$LOCAL" "$REMOTE"'
 git config --global difftool.prompt false
@@ -150,8 +161,8 @@ Command("code")
 
 Lua のモックテストを次のコマンドで実行できます。
 
-```powershell
-lua .\tests\test_main.lua
+```bash
+lua ./tests/test_main.lua
 ```
 
 Yazi 本体、`split-tabs.yazi` の実画面、Git の実 Difftool GUI、Windows の IME・フォーカス挙動はこのモックテストの対象外です。

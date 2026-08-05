@@ -6,15 +6,15 @@
 
 ## 依存関係
 
-- Windows 11（初期対象）
+- Git Bash または WSL（Yazi と Git を同じ環境で実行）
 - Yazi 26.5.6 以上と、同じバージョンの `ya`
 - `terrakok/split-tabs.yazi`
-- PATH 上の `git` と Git に設定した外部 Diff ツール
+- Yazi と同じ環境の PATH 上にある `git` と、Git に設定した外部 Diff ツール
 - Lua（テスト実行時のみ。Yazi 実行時は不要）
 
 バージョン確認:
 
-```powershell
+```bash
 yazi --version
 ya --version
 git --version
@@ -23,19 +23,25 @@ git difftool --tool-help
 
 ## インストール
 
-```powershell
+```bash
 ya pkg add terrakok/split-tabs
 git clone https://github.com/hironei/yazi_split_pane_diff_plugin.git
-Set-Location .\yazi_split_pane_diff_plugin
+cd yazi_split_pane_diff_plugin
 
-$pluginDir = Join-Path $env:APPDATA "yazi\config\plugins\pane-diff.yazi"
-New-Item -ItemType Directory -Force $pluginDir | Out-Null
-Copy-Item -Recurse -Force .\pane-diff.yazi\* $pluginDir
+if command -v cygpath >/dev/null 2>&1 && [ -n "${APPDATA:-}" ]; then
+    yazi_config_dir="$(cygpath -u "$APPDATA")/yazi/config"
+else
+    yazi_config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/yazi"
+fi
+
+plugin_dir="$yazi_config_dir/plugins/pane-diff.yazi"
+mkdir -p "$plugin_dir"
+cp -R ./pane-diff.yazi/. "$plugin_dir/"
 ```
 
 ## 設定
 
-`%AppData%\yazi\config\keymap.toml` に次を追加します。
+Yazi を実行する環境の `keymap.toml` に次を追加します。Git Bash では Windows 版 Yazi の `%AppData%/yazi/config/keymap.toml`、WSL では `${XDG_CONFIG_HOME:-$HOME/.config}/yazi/keymap.toml` が対象です。
 
 ```toml
 [[mgr.prepend_keymap]]
@@ -46,7 +52,7 @@ desc = "Compare files in split panes"
 
 Git Difftool の設定例:
 
-```powershell
+```bash
 git config --global diff.tool winmerge
 git config --global difftool.winmerge.cmd '"C:/Program Files/WinMerge/WinMergeU.exe" "$LOCAL" "$REMOTE"'
 git config --global difftool.prompt false
@@ -63,6 +69,6 @@ pane-diff.yazi/
 
 モックテストは次で実行できます。
 
-```powershell
-lua .\tests\test_main.lua
+```bash
+lua ./tests/test_main.lua
 ```
