@@ -2,26 +2,63 @@
 
 Yazi の `terrakok/split-tabs.yazi` で表示した2ペインのカーソル位置、または明示選択したファイルを、Git に設定した外部 Diff ツールで比較するプラグインです。
 
-## 必要環境
+## 依存関係
 
-- Windows 11（初期対象）
-- Yazi 26.5.6 以上
-- `terrakok/split-tabs.yazi`
-- `git` と Git の difftool 設定
+| 依存関係 | 必須条件 |
+| --- | --- |
+| OS | Windows 11（初期対象） |
+| Yazi | 26.5.6 以上 |
+| `ya` | Yazi と同じバージョン（`split-tabs.yazi` の導入に使用） |
+| `terrakok/split-tabs.yazi` | 2ペイン表示に必須 |
+| Git | `git` コマンドが PATH にあり、外部 difftool が設定済み |
+| Lua | 実行時は不要。リポジトリのモックテスト実行時のみ必要 |
+
+最低限、次のコマンドが成功することを確認してください。
+
+```powershell
+yazi --version
+ya --version
+git --version
+git difftool --tool-help
+```
 
 Yazi 26.5.6 の公式 API と `split-tabs.yazi` の現行実装を基準にしています。Yazi の API は変更される可能性があるため、更新後に動作確認してください。
 
 ## インストール
 
-このリポジトリの `pane-diff.yazi` ディレクトリを、Yazi のプラグインディレクトリへコピーします。
+### 1. split-tabs.yazi を導入
+
+Yazi の `ya` パッケージマネージャーで導入します。
 
 ```powershell
+ya pkg add terrakok/split-tabs
+```
+
+### 2. pane-diff.yazi を導入
+
+リポジトリを取得し、内側の `pane-diff.yazi` ディレクトリを Yazi のプラグインディレクトリへコピーします。
+
+```powershell
+git clone https://github.com/hironei/yazi_split_pane_diff_plugin.git
+Set-Location .\yazi_split_pane_diff_plugin
+
 $pluginDir = Join-Path $env:APPDATA "yazi\config\plugins\pane-diff.yazi"
 New-Item -ItemType Directory -Force $pluginDir | Out-Null
 Copy-Item -Recurse -Force .\pane-diff.yazi\* $pluginDir
 ```
 
-Yazi のプラグインディレクトリは通常 `%AppData%\yazi\config\plugins\` です。
+Yazi の Windows 用プラグインディレクトリは通常 `%AppData%\yazi\config\plugins\` です。更新時はリポジトリで `git pull` を実行し、同じ `Copy-Item` を再実行してください。
+
+### 3. インストール確認
+
+次のファイルが存在することを確認します。
+
+```text
+%AppData%\yazi\config\plugins\pane-diff.yazi\main.lua
+%AppData%\yazi\config\plugins\split-tabs.yazi\main.lua
+```
+
+Yazi の設定を変更した後は、Yazi を再起動してください。
 
 ## キーマップ
 
