@@ -25,19 +25,10 @@ git difftool --tool-help
 
 ```bash
 ya pkg add terrakok/split-tabs
-git clone https://github.com/hironei/yazi_split_pane_diff_plugin.git
-cd yazi_split_pane_diff_plugin
-
-if command -v cygpath >/dev/null 2>&1 && [ -n "${APPDATA:-}" ]; then
-    yazi_config_dir="$(cygpath -u "$APPDATA")/yazi/config"
-else
-    yazi_config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/yazi"
-fi
-
-plugin_dir="$yazi_config_dir/plugins/pane-diff.yazi"
-mkdir -p "$plugin_dir"
-cp -R ./pane-diff.yazi/. "$plugin_dir/"
+ya pkg add hironei/yazi_split_pane_diff_plugin:pane-diff
 ```
+
+`ya pkg` がプラグインを取得して配置し、`package.toml` に導入情報を記録します。更新は `ya pkg upgrade` で行えます。
 
 ## 設定
 
