@@ -1,4 +1,4 @@
-# Yazi Split Pane Diff Plugin
+# Yazi Split Pane Diff
 
 このリポジトリは、Yazi の `terrakok/split-tabs.yazi` で2ペインのファイルを外部 Diff ツールへ渡す `pane-diff.yazi` プラグインです。
 
@@ -25,7 +25,7 @@ git difftool --tool-help
 
 ```bash
 ya pkg add terrakok/split-tabs
-ya pkg add hironei/yazi_split_pane_diff_plugin:pane-diff
+ya pkg add hironei/yazi_split_pane_diff:pane-diff
 ```
 
 `ya pkg` がプラグインを取得して配置し、`package.toml` に導入情報を記録します。更新は `ya pkg upgrade` で行えます。

@@ -39,20 +39,20 @@ ya pkg add terrakok/split-tabs
 `ya pkg` のサブディレクトリ指定で導入します。
 
 ```bash
-ya pkg add hironei/yazi_split_pane_diff_plugin:pane-diff
+ya pkg add hironei/yazi_split_pane_diff:pane-diff
 ```
 
 `ya pkg` がリポジトリからプラグインを取得し、Yazi のプラグインディレクトリへ配置します。導入情報は `package.toml` に記録されます。更新時は `ya pkg upgrade`、削除時は次を実行します。
 
 ```bash
-ya pkg delete hironei/yazi_split_pane_diff_plugin:pane-diff
+ya pkg delete hironei/yazi_split_pane_diff:pane-diff
 ```
 
 ### 3. インストール確認
 
 Git Bash で Windows 版 Yazi を使う場合は `%AppData%/yazi/config/plugins/pane-diff.yazi/main.lua`、WSL で Linux 版 Yazi を使う場合は `${XDG_CONFIG_HOME:-$HOME/.config}/yazi/plugins/pane-diff.yazi/main.lua` が存在することを確認します。
 
-同じ設定ディレクトリの `package.toml` に、`hironei/yazi_split_pane_diff_plugin:pane-diff` が記録されていることも確認できます。
+同じ設定ディレクトリの `package.toml` に、`hironei/yazi_split_pane_diff:pane-diff` が記録されていることも確認できます。
 
 Yazi の設定を変更した後は、Yazi を再起動してください。
 
