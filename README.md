@@ -1,18 +1,27 @@
 # Yazi Split Pane Diff
 
-このリポジトリは、Yazi の `terrakok/split-tabs.yazi` で2ペインのファイルを外部 Diff ツールへ渡す `pane-diff.yazi` プラグインです。
+This repository contains `pane-diff.yazi`, a Yazi plugin that sends one file from each of two panes to an external Diff tool configured through Git's `difftool`.
 
-実体と利用手順は [`pane-diff.yazi/README.md`](pane-diff.yazi/README.md) にあります。
+The plugin and its usage guide are in [`pane-diff.yazi/README.md`](pane-diff.yazi/README.md).
 
-## 依存関係
+## Quick start
 
-- Git Bash または WSL（Yazi と Git を同じ環境で実行）
-- Yazi 26.5.6 以上と、同じバージョンの `ya`
+1. [Install the packages](pane-diff.yazi/README.md#installation) in the environment where Yazi and Git run.
+2. Add the [keymap](pane-diff.yazi/README.md#keymap) to `keymap.toml`.
+3. Configure a [Git Difftool](pane-diff.yazi/README.md#git-difftool-configuration).
+4. Open two panes, place the cursor on one file in each pane, and press `g`, then `d`.
+
+The detailed manual includes target-selection rules, troubleshooting, known limitations, and the live-validation boundary. Remaining unsupported capabilities are tracked in [Issue #2](https://github.com/hironei/yazi_split_pane_diff/issues/2).
+
+## Requirements
+
+- Git Bash or WSL, with Yazi and Git running in the same environment
+- Yazi 26.5.6 or later and the matching `ya` version
 - `terrakok/split-tabs.yazi`
-- Yazi と同じ環境の PATH 上にある `git` と、Git に設定した外部 Diff ツール
-- Lua（テスト実行時のみ。Yazi 実行時は不要）
+- `git` and a Git-configured external Diff tool available in the same environment's `PATH`
+- Lua only for running the repository's tests; Lua is not required by Yazi at runtime
 
-バージョン確認:
+Check the installed versions:
 
 ```bash
 yazi --version
@@ -21,18 +30,18 @@ git --version
 git difftool --tool-help
 ```
 
-## インストール
+## Installation
 
 ```bash
 ya pkg add terrakok/split-tabs
 ya pkg add hironei/yazi_split_pane_diff:pane-diff
 ```
 
-`ya pkg` がプラグインを取得して配置し、`package.toml` に導入情報を記録します。更新は `ya pkg upgrade` で行えます。
+`ya pkg` downloads and installs the plugin and records the package in `package.toml`. Run `ya pkg upgrade` to update it.
 
-## 設定
+## Configuration
 
-Yazi を実行する環境の `keymap.toml` に次を追加します。Git Bash では Windows 版 Yazi の `%AppData%/yazi/config/keymap.toml`、WSL では `${XDG_CONFIG_HOME:-$HOME/.config}/yazi/keymap.toml` が対象です。
+Add the following to the `keymap.toml` used by your Yazi environment. For Git Bash, this is `%AppData%/yazi/config/keymap.toml` for Windows Yazi. For WSL, it is `${XDG_CONFIG_HOME:-$HOME/.config}/yazi/keymap.toml`.
 
 ```toml
 [[mgr.prepend_keymap]]
@@ -41,7 +50,7 @@ run = "plugin pane-diff"
 desc = "Compare files in split panes"
 ```
 
-Git Difftool の設定例:
+Example Git Difftool configuration:
 
 ```bash
 git config --global diff.tool winmerge
@@ -49,7 +58,7 @@ git config --global difftool.winmerge.cmd '"C:/Program Files/WinMerge/WinMergeU.
 git config --global difftool.prompt false
 ```
 
-詳細なインストール手順、設定、比較対象の決定ルール、制約は [`pane-diff.yazi/README.md`](pane-diff.yazi/README.md) を参照してください。
+See [`pane-diff.yazi/README.md`](pane-diff.yazi/README.md) for detailed installation steps, configuration, target-selection rules, limitations, and live-validation boundaries.
 
 ```text
 pane-diff.yazi/
@@ -58,8 +67,12 @@ pane-diff.yazi/
 └── LICENSE
 ```
 
-モックテストは次で実行できます。
+Run the mock tests with:
 
 ```bash
 lua ./tests/test_main.lua
 ```
+
+## Contributing
+
+Keep file paths as separate command arguments and preserve the active-pane-first behavior. For plugin changes, run the Lua mock tests and `git diff --check`. Update the English README and plugin manual when behavior, setup, or limitations change. Live Yazi, external Diff GUI, Windows focus, and IME checks must be reported separately from automated test results.

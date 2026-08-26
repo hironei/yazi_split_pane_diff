@@ -1,19 +1,19 @@
 # pane-diff.yazi
 
-Yazi の `terrakok/split-tabs.yazi` で表示した2ペインのカーソル位置、または明示選択したファイルを、Git に設定した外部 Diff ツールで比較するプラグインです。
+`pane-diff.yazi` compares the file under the cursor, or one explicitly selected file, from each of two panes shown by `terrakok/split-tabs.yazi`. It passes the files to the external Diff tool configured through Git.
 
-## 依存関係
+## Requirements
 
-| 依存関係 | 必須条件 |
+| Dependency | Requirement |
 | --- | --- |
-| 対象環境 | Git Bash または WSL（Yazi と Git を同じ環境で実行） |
-| Yazi | 26.5.6 以上 |
-| `ya` | Yazi と同じバージョン（`split-tabs.yazi` の導入に使用） |
-| `terrakok/split-tabs.yazi` | 2ペイン表示に必須 |
-| Git | Yazi と同じ環境の `git` が PATH にあり、外部 difftool が設定済み |
-| Lua | 実行時は不要。リポジトリのモックテスト実行時のみ必要 |
+| Environment | Git Bash or WSL, with Yazi and Git running in the same environment |
+| Yazi | 26.5.6 or later |
+| `ya` | The same version as Yazi, for installing `split-tabs.yazi` |
+| `terrakok/split-tabs.yazi` | Required for the two-pane view |
+| Git | The same environment's `PATH` contains `git`, with an external difftool configured |
+| Lua | Not required at runtime; only needed for the repository's mock tests |
 
-最低限、次のコマンドが成功することを確認してください。
+At minimum, verify that these commands succeed:
 
 ```bash
 yazi --version
@@ -22,43 +22,43 @@ git --version
 git difftool --tool-help
 ```
 
-Yazi 26.5.6 の公式 API と `split-tabs.yazi` の現行実装を基準にしています。Yazi の API は変更される可能性があるため、更新後に動作確認してください。
+The plugin targets the public APIs available in Yazi 26.5.6 and the current `split-tabs.yazi` implementation. Yazi APIs may change; retest the plugin after upgrading.
 
-## インストール
+## Installation
 
-### 1. split-tabs.yazi を導入
+### 1. Install split-tabs.yazi
 
-Yazi の `ya` パッケージマネージャーで導入します。
+Install the pane provider with Yazi's package manager:
 
 ```bash
 ya pkg add terrakok/split-tabs
 ```
 
-### 2. pane-diff.yazi を導入
+### 2. Install pane-diff.yazi
 
-`ya pkg` のサブディレクトリ指定で導入します。
+Install the plugin from its repository subdirectory:
 
 ```bash
 ya pkg add hironei/yazi_split_pane_diff:pane-diff
 ```
 
-`ya pkg` がリポジトリからプラグインを取得し、Yazi のプラグインディレクトリへ配置します。導入情報は `package.toml` に記録されます。更新時は `ya pkg upgrade`、削除時は次を実行します。
+`ya pkg` downloads the repository and places the plugin in Yazi's plugin directory. It records the installation in `package.toml`. Update it with `ya pkg upgrade`, or remove it with:
 
 ```bash
 ya pkg delete hironei/yazi_split_pane_diff:pane-diff
 ```
 
-### 3. インストール確認
+### 3. Verify the installation
 
-Git Bash で Windows 版 Yazi を使う場合は `%AppData%/yazi/config/plugins/pane-diff.yazi/main.lua`、WSL で Linux 版 Yazi を使う場合は `${XDG_CONFIG_HOME:-$HOME/.config}/yazi/plugins/pane-diff.yazi/main.lua` が存在することを確認します。
+For Windows Yazi used from Git Bash, verify `%AppData%/yazi/config/plugins/pane-diff.yazi/main.lua`. For Linux Yazi used from WSL, verify `${XDG_CONFIG_HOME:-$HOME/.config}/yazi/plugins/pane-diff.yazi/main.lua`.
 
-同じ設定ディレクトリの `package.toml` に、`hironei/yazi_split_pane_diff:pane-diff` が記録されていることも確認できます。
+The same configuration directory's `package.toml` should contain `hironei/yazi_split_pane_diff:pane-diff`.
 
-Yazi の設定を変更した後は、Yazi を再起動してください。
+Restart Yazi after changing its configuration.
 
-## キーマップ
+## Keymap
 
-Yazi を実行する環境の `keymap.toml` に追加します。Git Bash では Windows 版 Yazi の `%AppData%/yazi/config/keymap.toml`、WSL では `${XDG_CONFIG_HOME:-$HOME/.config}/yazi/keymap.toml` が対象です。
+Add this to the `keymap.toml` used by your Yazi environment. For Git Bash, this is `%AppData%/yazi/config/keymap.toml` for Windows Yazi. For WSL, it is `${XDG_CONFIG_HOME:-$HOME/.config}/yazi/keymap.toml`.
 
 ```toml
 [[mgr.prepend_keymap]]
@@ -67,7 +67,7 @@ run = "plugin pane-diff"
 desc = "Compare files in split panes"
 ```
 
-`g` プレフィックスが既存設定と競合する場合は、例えば次のように変更してください。
+If the `g` prefix conflicts with an existing mapping, choose another key, for example:
 
 ```toml
 [[mgr.prepend_keymap]]
@@ -76,40 +76,40 @@ run = "plugin pane-diff"
 desc = "Compare files in split panes"
 ```
 
-設定例は [`examples/keymap.toml`](../examples/keymap.toml) にもあります。
+The same example is available in [`examples/keymap.toml`](../examples/keymap.toml).
 
-## 基本操作
+## Basic operation
 
-1. `split-tabs.yazi` を有効にして2ペインを表示します。
-2. 各ペインで比較したいファイルにカーソルを合わせます。
-3. `g` → `d` を押します。
+1. Enable `split-tabs.yazi` and show two panes.
+2. Place the cursor on the file to compare in each pane.
+3. Press `g`, then `d`.
 
-Diff ツールには、実行時のアクティブペインを第1引数、反対側ペインを第2引数として渡します。したがって、アクティブペインを切り替えると引数の順序も反転します。物理的な画面左・右の順序は保証しません。
+The active pane's file is passed as the first argument to the Diff tool, and the other pane's file is passed as the second argument. Switching the active pane therefore reverses the argument order. Physical screen-left and screen-right ordering is not guaranteed.
 
-## 比較対象の決定ルール
+## Target selection
 
-各ペインで次の優先順位を使います。
+Each pane uses this priority order:
 
-1. 明示選択が1件なら、そのファイルを使います。
-2. 明示選択がないなら、カーソル位置のファイルを使います。
-3. 明示選択が2件以上なら起動しません。
-4. カーソル位置に項目がなければ起動しません。
-5. ディレクトリ、解決できないシンボリックリンク、通常ファイルでない項目は起動しません。
+1. If exactly one file is explicitly selected, use it.
+2. If there is no explicit selection, use the file under the cursor.
+3. Do not launch when two or more files are selected.
+4. Do not launch when there is no item under the cursor.
+5. Do not launch for directories, unresolved symbolic links, or non-regular files.
 
-選択状態、カーソル位置、Yazi のカレントディレクトリは変更しません。
+The plugin does not change the selection state, cursor position, or Yazi's current directory.
 
-## Git Difftool の設定
+## Git Difftool configuration
 
-Git 管理外のファイルも比較できるよう、`--no-index` を付けて次の相当コマンドを起動します。
+The plugin adds `--no-index` so that files outside a Git repository can also be compared. It starts the equivalent of:
 
 ```text
 git difftool --no-index --no-prompt -- <active-file> <other-file>
 ```
 
-例えば WinMerge を Git の difftool に設定する場合:
+For example, configure WinMerge as Git's difftool:
 
-- Git Bash: Windows 側の WinMerge など、Git Bash から起動できるツールを設定します。
-- WSL: WSL 内で起動できる Linux 用 Diff ツールを設定します。Windows 側の実行ファイルを使う場合は、WSL から呼び出せるコマンドを別途用意してください。
+- Git Bash: configure a Windows WinMerge executable that Git Bash can start.
+- WSL: configure a Linux Diff tool available inside WSL. To use a Windows executable, provide a command that WSL can invoke.
 
 ```bash
 git config --global diff.tool winmerge
@@ -117,20 +117,20 @@ git config --global difftool.winmerge.cmd '"C:/Program Files/WinMerge/WinMergeU.
 git config --global difftool.prompt false
 ```
 
-設定例の詳細は [`examples/difftool.md`](../examples/difftool.md) を参照してください。パスは `Command:arg` に個別の引数として渡すため、空白・日本語・括弧を含む Windows パスをシェルのクォート処理なしで扱います。
+See [`examples/difftool.md`](../examples/difftool.md) for more examples. Paths are passed as separate `Command:arg` arguments, so spaces, Japanese characters, and parentheses do not depend on shell quoting.
 
-## 通知とトラブルシューティング
+## Notifications and troubleshooting
 
-- タブ数が2でない: `split-tabs.yazi` を有効にしてください。
-- 比較対象がない、複数選択、ディレクトリ: 対象を1ファイルにしてください。
-- `git` が見つからない、Git の difftool が未設定: `git --version` と `git difftool --tool-help` を確認してください。
-- プロセス起動失敗: Diff ツールの設定、実行ファイルの PATH、Git の difftool 設定を確認してください。
+- Fewer or more than two tabs: enable `split-tabs.yazi` and show exactly two tabs.
+- No target, multiple selection, or directory: select or place the cursor on exactly one regular file in each pane.
+- `git` is missing or no difftool is configured: check `git --version` and `git difftool --tool-help`.
+- Process launch failure: check the Diff tool executable's `PATH` and Git's difftool configuration.
 
-外部プロセスは非同期で起動し、Yazi の非同期 API で終了状態を監視します。プロセスの起動失敗、終了状態の取得失敗、異常終了は通知します。Diff ツールの終了を待つ処理は Yazi 本体の操作をブロックしません。
+The external process is started asynchronously and its exit state is monitored through Yazi's asynchronous API. Launch failures, wait failures, and non-zero exit status are reported as Yazi notifications. Waiting for the Diff tool does not block Yazi's main operation.
 
-## 直接起動への拡張
+## Direct-launch extension
 
-現在の初期実装は Git Difftool 固定です。WinMerge、VS Code、Beyond Compare などを直接起動する場合は、`launch_diff` のコマンドと引数だけを差し替えてください。ファイルパスを文字列連結したシェルコマンドへ変換しないでください。
+The initial implementation is fixed to Git Difftool. To launch WinMerge, VS Code, Beyond Compare, or another tool directly, replace only the command and arguments in `launch_diff`. Do not turn paths into a shell-built command string.
 
 ```lua
 Command("code")
@@ -138,23 +138,25 @@ Command("code")
 	:spawn()
 ```
 
-## 既知の制約
+## Known limitations and unsupported scope
 
-- 3ペイン以上、3ファイル以上、ディレクトリ再帰比較、Yazi 内部での Diff 表示には対応しません。
-- 非アクティブペインの操作や複数選択ファイルの一括比較には対応しません。
-- `split-tabs.yazi` の内部状態を直接変更せず、Yazi が公開する `cx.tabs` から2タブを取得します。プラグイン側から `split-tabs.yazi` の物理的な左右対応を取得する公開 API は確認できないため、左右順序は保証しません。
-- Yazi の状態情報だけでは、比較直前の削除を事前検出できません。その場合は Git/Diff ツール側の終了状態を Yazi 通知へ出します。
+- Three or more panes, three or more files, recursive directory comparison, and an in-Yazi Diff viewer are not supported.
+- Operating on an inactive pane or comparing multiple selected files as a batch is not supported.
+- The plugin reads the two tabs from Yazi's public `cx.tabs` API and does not modify `split-tabs.yazi` internals. A stable public mapping from `split-tabs.yazi` to physical screen-left/screen-right order is not available, so physical left/right ordering is not guaranteed.
+- Yazi state alone cannot detect a file deleted immediately before comparison. In that case, the Git/Diff tool's exit status is reported as a Yazi notification.
 
-## テスト
+The remaining unsupported capabilities and live acceptance work are tracked in [Issue #2](https://github.com/hironei/yazi_split_pane_diff/issues/2). The Lua mock tests do not cover the real Yazi screen, `split-tabs.yazi`, a configured external Diff GUI, Windows IME, or Windows focus behavior.
 
-Lua のモックテストを次のコマンドで実行できます。
+## Testing
+
+Run the Lua mock tests with:
 
 ```bash
 lua ./tests/test_main.lua
 ```
 
-Yazi 本体、`split-tabs.yazi` の実画面、Git の実 Difftool GUI、Windows の IME・フォーカス挙動はこのモックテストの対象外です。
+These tests do not replace live acceptance in Yazi, `split-tabs.yazi`, Git's external Difftool GUI, or Windows input and focus behavior.
 
-## ライセンス
+## License
 
-MIT License。全文は [`LICENSE`](LICENSE) を参照してください。
+MIT License. See [`LICENSE`](LICENSE) for the full text.
