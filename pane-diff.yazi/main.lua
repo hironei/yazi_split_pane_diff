@@ -6,12 +6,11 @@ local messages = {
 	wrong_tab_count =
 		"比較には2つのタブが必要です。split-tabsを有効にしてください。",
 	missing_target = "カーソル位置に比較対象がありません。",
-	multiple_selection = "各ペインの選択ファイルは1つにしてください。",
+	multiple_selection = "各ペインの選択対象は1つにしてください。",
 	tab_unavailable = "比較対象のタブを取得できませんでした。",
-	directory = "ディレクトリは比較できません。",
-	non_regular = "通常ファイルのみ比較できます。",
-	orphan = "シンボリックリンク先を解決できません。",
-	selected_unavailable = "選択ファイルを取得できませんでした。",
+	selected_unavailable = "選択対象を取得できませんでした。",
+	tool_unavailable = "GitのDiffツール設定を取得できませんでした: ",
+	tool_not_configured = "GitにDiffツールが設定されていません。",
 	process_unavailable = "Diffツールのプロセスを開始できませんでした。",
 	launch_failed = "Diffツールを起動できませんでした: ",
 	wait_failed = "Diffツールの実行状態を取得できませんでした: ",
@@ -47,70 +46,43 @@ local function resolve_url(entry)
 	return entry.url or entry
 end
 
+local function resolve_path(entry)
+	local url = resolve_url(entry)
+	if not url then
+		return nil
+	end
+
+	return tostring(url)
+end
+
 local function get_single_selected(selected)
 	for _, entry in pairs(selected or {}) do
-		return resolve_url(entry)
+		return entry
 	end
 
 	return nil
-end
-
-local function validate_url(url)
-	if not url then
-		return nil, messages.selected_unavailable
-	end
-
-	-- Yazi 26.8.15 exposes this value through Url.spec. Older URL-shaped
-	-- entries may expose is_regular directly, so retain that fallback.
-	local spec = url.spec
-	local is_regular
-	if spec then
-		is_regular = spec.is_regular
-	else
-		is_regular = url.is_regular
-	end
-	if is_regular == false then
-		return nil, messages.non_regular
-	end
-
-	return tostring(url), nil
-end
-
-local function validate_hovered(hovered)
-	if not hovered then
-		return nil, messages.missing_target
-	end
-
-	local cha = hovered.cha
-	if cha then
-		if cha.is_dir then
-			return nil, messages.directory
-		end
-
-		if cha.is_orphan then
-			return nil, messages.orphan
-		end
-
-		if cha.is_block or cha.is_char or cha.is_fifo or cha.is_sock then
-			return nil, messages.non_regular
-		end
-	end
-
-	return validate_url(hovered.url)
 end
 
 local function get_target_from_tab(tab)
 	local selected_count = count_selected(tab.selected)
 
 	if selected_count == 1 then
-		return validate_url(get_single_selected(tab.selected))
+		local path = resolve_path(get_single_selected(tab.selected))
+		if not path then
+			return nil, messages.selected_unavailable
+		end
+		return path, nil
 	end
 
 	if selected_count > 1 then
 		return nil, messages.multiple_selection
 	end
 
-	return validate_hovered(tab.current and tab.current.hovered)
+	local path = resolve_path(tab.current and tab.current.hovered)
+	if not path then
+		return nil, messages.missing_target
+	end
+	return path, nil
 end
 
 local get_compare_targets = ya.sync(function()
@@ -140,16 +112,49 @@ local get_compare_targets = ya.sync(function()
 	return active_path, other_path, nil
 end)
 
-local function launch_diff(file1, file2)
-	return Command("git")
-		:arg {
-			"difftool",
-			"--no-index",
-			"--no-prompt",
-			"--",
-			file1,
-			file2,
-		}
+local function trim(value)
+	return value:gsub("^%s+", ""):gsub("%s+$", "")
+end
+
+local function read_git_config(key)
+	local output, err = Command("git")
+		:arg { "config", "--get", "--default=", key }
+		:output()
+
+	if err then
+		return nil, tostring(err)
+	end
+
+	if not output or type(output.stdout) ~= "string" then
+		return nil, "Gitの設定出力を取得できませんでした"
+	end
+
+	return trim(output.stdout), nil
+end
+
+local function get_diff_tool()
+	local tool, tool_error = read_git_config("diff.tool")
+	if tool_error then
+		return nil, messages.tool_unavailable .. tool_error
+	end
+
+	if not tool or tool == "" then
+		return nil, messages.tool_not_configured
+	end
+
+	local path, path_error = read_git_config("difftool." .. tool .. ".path")
+	if path_error then
+		return nil, messages.tool_unavailable .. path_error
+	end
+
+	-- Git uses the configured tool name when no explicit path is set and
+	-- expects that executable to be available through PATH.
+	return path ~= "" and path or tool, nil
+end
+
+local function launch_diff(tool, left, right)
+	return Command(tool)
+		:arg { left, right }
 		:spawn()
 end
 
@@ -168,10 +173,7 @@ local function monitor_diff(child)
 		return
 	end
 
-	-- git difftool --no-index uses exit code 1 to report that the files differ.
-	-- Only this expected result is accepted; other non-success statuses remain
-	-- visible to the user as process failures.
-	if status and not status.success and status.code ~= 1 then
+	if status and not status.success then
 		notify("error", messages.process_failed .. "終了コード " .. tostring(status.code))
 	end
 end
@@ -183,9 +185,15 @@ local function entry()
 		return
 	end
 
+	local diff_tool, tool_error = get_diff_tool()
+	if tool_error then
+		notify("error", tool_error)
+		return
+	end
+
 	-- Protect the plugin from API/runtime errors while starting an external
 	-- process. Paths are still passed as separate arguments to Command.
-	local ok, child, launch_error = pcall(launch_diff, active_path, other_path)
+	local ok, child, launch_error = pcall(launch_diff, diff_tool, active_path, other_path)
 	if not ok then
 		notify("error", messages.launch_failed .. tostring(child))
 		return

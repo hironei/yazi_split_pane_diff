@@ -1,33 +1,23 @@
 # Git Difftool examples
 
-`pane-diff.yazi` runs the following argument-safe command:
+`pane-diff.yazi` resolves Git's configured tool path and runs it with two separate arguments:
 
 ```text
-git difftool --no-index --no-prompt -- <active-file> <other-file>
+<configured-difftool-path> <active-file-or-folder> <other-file-or-folder>
 ```
 
 ## WinMerge
 
 ```bash
 git config --global diff.tool winmerge
-git config --global difftool.winmerge.cmd '"C:/Program Files/WinMerge/WinMergeU.exe" "$LOCAL" "$REMOTE"'
-git config --global difftool.prompt false
-```
-
-## Visual Studio Code
-
-```bash
-git config --global diff.tool vscode
-git config --global difftool.vscode.cmd 'code --diff "$LOCAL" "$REMOTE"'
-git config --global difftool.prompt false
+git config --global difftool.winmerge.path 'C:/Program Files/WinMerge/WinMergeU.exe'
 ```
 
 ## Beyond Compare
 
 ```bash
 git config --global diff.tool bcompare
-git config --global difftool.bcompare.cmd '"C:/Program Files/Beyond Compare/BCompare.exe" "$LOCAL" "$REMOTE"'
-git config --global difftool.prompt false
+git config --global difftool.bcompare.path 'C:/Program Files/Beyond Compare/BCompare.exe'
 ```
 
-Use `git difftool --tool-help` to check the tools Git can find. The plugin does not invoke `cmd.exe /c`, `sh -c`, or a shell-built command line.
+Use `git difftool --tool-help` to check the tool name, and `git config --get difftool.<tool>.path` to check its configured path. The plugin does not invoke `git difftool`, `cmd.exe /c`, `sh -c`, or a shell-built command line. If no `difftool.<tool>.path` is configured, the `diff.tool` name is used as a command expected to be available in `PATH`.
