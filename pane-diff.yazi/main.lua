@@ -1,4 +1,5 @@
 --- @since 26.5.6
+--- Tested with Yazi 26.8.15; older direct selected-URL values remain supported.
 
 local messages = {
 	title = "Pane diff",
@@ -36,9 +37,19 @@ local function count_selected(selected)
 	return count
 end
 
+local function resolve_url(entry)
+	if not entry then
+		return nil
+	end
+
+	-- Yazi 26.8.15 returns File entries from tab.selected. Older versions
+	-- returned URL-like entries directly; keep both representations working.
+	return entry.url or entry
+end
+
 local function get_single_selected(selected)
-	for _, url in pairs(selected or {}) do
-		return url
+	for _, entry in pairs(selected or {}) do
+		return resolve_url(entry)
 	end
 
 	return nil
@@ -49,9 +60,16 @@ local function validate_url(url)
 		return nil, messages.selected_unavailable
 	end
 
-	-- Url.is_regular is part of the current Yazi plugin API. A false value
-	-- means the selected URL is not a regular file (for example a directory).
-	if url.is_regular == false then
+	-- Yazi 26.8.15 exposes this value through Url.spec. Older URL-shaped
+	-- entries may expose is_regular directly, so retain that fallback.
+	local spec = url.spec
+	local is_regular
+	if spec then
+		is_regular = spec.is_regular
+	else
+		is_regular = url.is_regular
+	end
+	if is_regular == false then
 		return nil, messages.non_regular
 	end
 
@@ -150,7 +168,10 @@ local function monitor_diff(child)
 		return
 	end
 
-	if status and not status.success then
+	-- git difftool --no-index uses exit code 1 to report that the files differ.
+	-- Only this expected result is accepted; other non-success statuses remain
+	-- visible to the user as process failures.
+	if status and not status.success and status.code ~= 1 then
 		notify("error", messages.process_failed .. "終了コード " .. tostring(status.code))
 	end
 end
