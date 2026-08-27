@@ -1,6 +1,6 @@
 # pane-diff.yazi
 
-`pane-diff.yazi` compares the file under the cursor, or one explicitly selected file, from each of two panes shown by `terrakok/split-tabs.yazi`. It passes the files to the external Diff tool configured through Git.
+`pane-diff.yazi` compares the target under the cursor, or one explicitly selected target, from each of two panes shown by `terrakok/split-tabs.yazi`. Targets may be files or folders. It passes both paths directly to the external Diff tool whose path is configured through Git.
 
 ## Requirements
 
@@ -10,7 +10,7 @@
 | Yazi | 26.8.15 tested baseline; 26.5.6 selected-URL compatibility is retained |
 | `ya` | The same version as Yazi, for installing `split-tabs.yazi` |
 | `terrakok/split-tabs.yazi` | Required for the two-pane view |
-| Git | The same environment's `PATH` contains `git`, with an external difftool configured |
+| Git | The same environment's `PATH` contains `git`, with `diff.tool` configured and its `difftool.<tool>.path` set or the tool name available in `PATH` |
 | Lua | Not required at runtime; only needed for the repository's mock tests |
 
 At minimum, verify that these commands succeed:
@@ -81,34 +81,34 @@ The same example is available in [`examples/keymap.toml`](../examples/keymap.tom
 ## Basic operation
 
 1. Enable `split-tabs.yazi` and show two panes.
-2. Place the cursor on the file to compare in each pane.
+2. Select one file or folder, or place the cursor on one target, in each pane.
 3. Press `g`, then `d`.
 
-The active pane's file is passed as the first argument to the Diff tool, and the other pane's file is passed as the second argument. Switching the active pane therefore reverses the argument order. Physical screen-left and screen-right ordering is not guaranteed.
+The active pane's target is passed as the first argument to the Diff tool, and the other pane's target is passed as the second argument. Switching the active pane therefore reverses the argument order. Physical screen-left and screen-right ordering is not guaranteed.
 
 ## Target selection
 
 Each pane uses this priority order:
 
-1. If exactly one file is explicitly selected, use it.
-2. If there is no explicit selection, use the file under the cursor.
-3. Do not launch when two or more files are selected.
+1. If exactly one target is explicitly selected, use it.
+2. If there is no explicit selection, use the target under the cursor.
+3. Do not launch when two or more targets are selected.
 4. Do not launch when there is no item under the cursor.
-5. Do not launch for directories, unresolved symbolic links, or non-regular files.
+5. Do not classify the target as a file, folder, link, or special file; pass its URL to the Diff tool unchanged.
 
 The plugin does not change the selection state, cursor position, or Yazi's current directory.
 
-On Yazi 26.8.15, selected values are `File` entries and the plugin resolves each entry through its `.url`. Direct URL-shaped selected values from older versions remain supported.
+On Yazi 26.8.15, selected values are `File` entries and the plugin resolves each entry through its `.url`. Direct URL-shaped selected values from older versions remain supported. The target's type is intentionally not inspected.
 
 ## Git Difftool configuration
 
-The plugin adds `--no-index` so that files outside a Git repository can also be compared. It starts the equivalent of:
+The plugin reads `diff.tool` and `difftool.<tool>.path` from Git, then starts the configured executable directly:
 
 ```text
-git difftool --no-index --no-prompt -- <active-file> <other-file>
+<configured-difftool-path> <active-file-or-folder> <other-file-or-folder>
 ```
 
-For this `--no-index` invocation, exit code 1 can mean that the files differ. The plugin accepts exit codes 0 and 1 as expected results and reports other non-zero exit statuses as process failures. Launch and wait failures are always reported. The child status API cannot distinguish an external tool's independent use of code 1, so only code 1 is treated as the expected result for this fixed Git invocation.
+The plugin does not invoke `git difftool`, because Git may expand directory comparisons into individual file invocations. Paths are passed as separate `Command:arg` arguments, so files and folders with spaces, Japanese characters, and parentheses do not depend on shell quoting. Launch, wait, and non-zero process statuses are reported as Yazi notifications.
 
 For example, configure WinMerge as Git's difftool:
 
@@ -117,8 +117,7 @@ For example, configure WinMerge as Git's difftool:
 
 ```bash
 git config --global diff.tool winmerge
-git config --global difftool.winmerge.cmd '"C:/Program Files/WinMerge/WinMergeU.exe" "$LOCAL" "$REMOTE"'
-git config --global difftool.prompt false
+git config --global difftool.winmerge.path 'C:/Program Files/WinMerge/WinMergeU.exe'
 ```
 
 See [`examples/difftool.md`](../examples/difftool.md) for more examples. Paths are passed as separate `Command:arg` arguments, so spaces, Japanese characters, and parentheses do not depend on shell quoting.
@@ -126,28 +125,28 @@ See [`examples/difftool.md`](../examples/difftool.md) for more examples. Paths a
 ## Notifications and troubleshooting
 
 - Fewer or more than two tabs: enable `split-tabs.yazi` and show exactly two tabs.
-- No target, multiple selection, or directory: select or place the cursor on exactly one regular file in each pane.
-- `git` is missing or no difftool is configured: check `git --version` and `git difftool --tool-help`.
+- No target or multiple selection: select or place the cursor on exactly one target in each pane.
+- `git` is missing or no difftool path is configured: check `git --version`, `git difftool --tool-help`, and `git config --get difftool.<tool>.path`.
 - Process launch failure: check the Diff tool executable's `PATH` and Git's difftool configuration.
 
-The external process is started asynchronously and its exit state is monitored through Yazi's asynchronous API. Launch failures, wait failures, and non-zero exit statuses other than the expected `--no-index` difference result are reported as Yazi notifications. Waiting for the Diff tool does not block Yazi's main operation.
+The external process is started asynchronously and its exit state is monitored through Yazi's asynchronous API. Launch failures, wait failures, and non-zero exit statuses are reported as Yazi notifications. Waiting for the Diff tool does not block Yazi's main operation.
 
 ## Direct-launch extension
 
-The initial implementation is fixed to Git Difftool. To launch WinMerge, VS Code, Beyond Compare, or another tool directly, replace only the command and arguments in `launch_diff`. Do not turn paths into a shell-built command string.
+The plugin uses the path configured by Git for the selected `diff.tool`. To use WinMerge, Beyond Compare, or another tool that accepts two path arguments, configure its executable path with `difftool.<tool>.path`. Do not turn paths into a shell-built command string.
 
 ```lua
-Command("code")
-	:arg { "--diff", file1, file2 }
+Command("configured-difftool-path")
+	:arg { path1, path2 }
 	:spawn()
 ```
 
 ## Known limitations and unsupported scope
 
-- Three or more panes, three or more files, recursive directory comparison, and an in-Yazi Diff viewer are not supported.
-- Operating on an inactive pane or comparing multiple selected files as a batch is not supported.
+- Three or more panes, three or more targets, and an in-Yazi Diff viewer are not supported.
+- Operating on an inactive pane or comparing multiple selected targets as a batch is not supported.
 - The plugin reads the two tabs from Yazi's public `cx.tabs` API and does not modify `split-tabs.yazi` internals. A stable public mapping from `split-tabs.yazi` to physical screen-left/screen-right order is not available, so physical left/right ordering is not guaranteed.
-- Yazi state alone cannot detect a file deleted immediately before comparison. In that case, the Git/Diff tool's exit status is reported as a Yazi notification.
+- Yazi state alone cannot detect a target deleted immediately before comparison. In that case, the Diff tool's launch or exit status is reported as a Yazi notification.
 
 The remaining unsupported capabilities and live acceptance work are tracked in [Issue #2](https://github.com/hironei/yazi_split_pane_diff/issues/2). Compatibility and live acceptance for the Yazi 26.8.15 selected-entry contract are tracked in [Issue #4](https://github.com/hironei/yazi_split_pane_diff/issues/4). The Lua mock tests do not cover the real Yazi screen, `split-tabs.yazi`, a configured external Diff GUI, Windows IME, or Windows focus behavior.
 

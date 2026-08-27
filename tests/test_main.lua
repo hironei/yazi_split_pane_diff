@@ -8,6 +8,10 @@ function successful_child:wait()
 end
 
 local spawn_result = { child = successful_child, err = nil }
+local git_config = {
+	["diff.tool"] = "bcompare",
+	["difftool.bcompare.path"] = [[C:\Tools\ConfiguredDiff.exe]],
+}
 
 ya = {
 	sync = function(fn)
@@ -32,22 +36,27 @@ function command:spawn()
 	return spawn_result.child, spawn_result.err
 end
 
+function command:output()
+	local key = self.args[4]
+	return { stdout = git_config[key] or "" }, nil
+end
+
 function Command(program)
 	return setmetatable({ program = program }, { __index = command })
 end
 
 local plugin = assert(loadfile(source))()
 
-local function url(path, is_regular)
-	return setmetatable({ path = path, is_regular = is_regular ~= false }, {
+local function url(path)
+	return setmetatable({ path = path }, {
 		__tostring = function(value)
 			return value.path
 		end,
 	})
 end
 
-local function modern_url(path, is_regular)
-	return setmetatable({ path = path, spec = { is_regular = is_regular ~= false } }, {
+local function modern_url(path)
+	return setmetatable({ path = path, spec = {} }, {
 		__tostring = function(value)
 			return value.path
 		end,
@@ -57,7 +66,7 @@ end
 local function file(path, opts)
 	opts = opts or {}
 	return {
-		url = opts.modern and modern_url(path, opts.is_regular) or url(path, opts.is_regular),
+		url = opts.modern and modern_url(path) or url(path),
 		cha = {
 			is_dir = opts.is_dir or false,
 			is_orphan = opts.is_orphan or false,
@@ -80,6 +89,10 @@ local function reset()
 	notifications = {}
 	launched = {}
 	spawn_result = { child = successful_child, err = nil }
+	git_config = {
+		["diff.tool"] = "bcompare",
+		["difftool.bcompare.path"] = [[C:\Tools\ConfiguredDiff.exe]],
+	}
 end
 
 local function run(tabs, active_index)
@@ -105,11 +118,9 @@ run({
 	tab({}, file([[C:\work\right pane\右.txt]])),
 })
 assert_equal(#notifications, 0, "success notification count")
-assert_equal(launched[1].program, "git", "program")
-assert_equal(launched[1].args[1], "difftool", "git subcommand")
-assert_equal(launched[1].args[4], "--", "path separator")
-assert_equal(launched[1].args[5], [[C:\work\left pane\左.txt]], "active path")
-assert_equal(launched[1].args[6], [[C:\work\right pane\右.txt]], "other path")
+assert_equal(launched[1].program, [[C:\Tools\ConfiguredDiff.exe]], "configured diff tool path")
+assert_equal(launched[1].args[1], [[C:\work\left pane\左.txt]], "active path")
+assert_equal(launched[1].args[2], [[C:\work\right pane\右.txt]], "other path")
 
 -- One explicit selection takes precedence over the hovered file.
 reset()
@@ -117,7 +128,7 @@ run({
 	tab({ url([[C:\selected\one.txt]]) }, file([[C:\hovered\left.txt]])),
 	tab({}, file([[C:\hovered\right.txt]])),
 })
-assert_equal(launched[1].args[5], [[C:\selected\one.txt]], "selected path")
+assert_equal(launched[1].args[1], [[C:\selected\one.txt]], "selected path")
 
 -- Yazi 26.8.15 selected entries are File objects; use their URL, not the
 -- wrapper's string representation, and preserve one selected file per pane.
@@ -126,8 +137,8 @@ run({
 	tab({ file([[C:\selected\File entry\左.txt]], { modern = true }) }, file([[C:\hovered\left.txt]])),
 	tab({ file([[C:\selected\other\右.txt]], { modern = true }) }, file([[C:\hovered\right.txt]])),
 })
-assert_equal(launched[1].args[5], [[C:\selected\File entry\左.txt]], "selected File path")
-assert_equal(launched[1].args[6], [[C:\selected\other\右.txt]], "selected File path in other pane")
+assert_equal(launched[1].args[1], [[C:\selected\File entry\左.txt]], "selected File path")
+assert_equal(launched[1].args[2], [[C:\selected\other\右.txt]], "selected File path in other pane")
 
 -- The active pane is always the first argument.
 reset()
@@ -135,24 +146,37 @@ run({
 	tab({}, file([[C:\first.txt]])),
 	tab({}, file([[C:\second.txt]])),
 }, 2)
-assert_equal(launched[1].args[5], [[C:\second.txt]], "reversed active path")
-assert_equal(launched[1].args[6], [[C:\first.txt]], "reversed other path")
+assert_equal(launched[1].args[1], [[C:\second.txt]], "reversed active path")
+assert_equal(launched[1].args[2], [[C:\first.txt]], "reversed other path")
 
--- Invalid target states do not launch a process.
+-- File and directory targets are both passed through without type checks.
 reset()
-run({ tab({}, file([[C:\left.txt]], { is_dir = true })), tab({}, file([[C:\right.txt]])) })
-assert_equal(#launched, 0, "directory launch count")
-assert_notification("warn", "ディレクトリは比較できません")
+run({ tab({ file([[C:\left folder]], { modern = true, is_dir = true }) }, file([[C:\hovered\left.txt]])), tab({}, file([[C:\right.txt]])) })
+assert_equal(launched[1].program, [[C:\Tools\ConfiguredDiff.exe]], "directory diff tool")
+assert_equal(launched[1].args[1], [[C:\left folder]], "selected directory path")
+assert_equal(launched[1].args[2], [[C:\right.txt]], "mixed target path")
 
+-- The configured path is resolved from Git, regardless of the selected tool.
 reset()
-run({ tab({}, file([[C:\left.link]], { is_orphan = true })), tab({}, file([[C:\right.txt]])) })
-assert_equal(#launched, 0, "orphan launch count")
-assert_notification("warn", "シンボリックリンク先を解決できません")
+git_config = {
+	["diff.tool"] = "winmerge",
+	["difftool.winmerge.path"] = [[C:\Program Files\WinMerge\WinMergeU.exe]],
+}
+run({ tab({}, file([[C:\left folder]])), tab({}, file([[C:\right folder]])) })
+assert_equal(launched[1].program, [[C:\Program Files\WinMerge\WinMergeU.exe]], "alternate configured diff tool path")
+assert_equal(launched[1].args[1], [[C:\left folder]], "left directory path")
+assert_equal(launched[1].args[2], [[C:\right folder]], "right directory path")
+
+-- Without an explicit path, Git's tool name is used as a PATH command.
+reset()
+git_config = { ["diff.tool"] = "winmerge" }
+run({ tab({}, file([[C:\left.txt]])), tab({}, file([[C:\right.txt]])) })
+assert_equal(launched[1].program, "winmerge", "PATH diff tool fallback")
 
 reset()
 run({ tab({ url([[C:\one.txt]]), url([[C:\two.txt]]) }, file([[C:\left.txt]])), tab({}, file([[C:\right.txt]])) })
 assert_equal(#launched, 0, "multiple selection launch count")
-assert_notification("warn", "各ペインの選択ファイルは1つ")
+assert_notification("warn", "各ペインの選択対象は1つ")
 
 reset()
 run({ tab({}, nil), tab({}, file([[C:\right.txt]])) })
@@ -165,14 +189,10 @@ assert_equal(#launched, 0, "wrong tab count launch count")
 assert_notification("warn", "比較には2つのタブが必要です")
 
 reset()
-run({ tab({ url([[C:\directory]], false) }, file([[C:\left.txt]])), tab({}, file([[C:\right.txt]])) })
-assert_equal(#launched, 0, "selected directory launch count")
-assert_notification("warn", "通常ファイルのみ比較できます")
-
-reset()
-run({ tab({ file([[C:\selected\special]], { modern = true, is_regular = false }) }, file([[C:\left.txt]])), tab({}, file([[C:\right.txt]])) })
-assert_equal(#launched, 0, "selected File non-regular launch count")
-assert_notification("warn", "通常ファイルのみ比較できます")
+git_config = {}
+run({ tab({}, file([[C:\left.txt]])), tab({}, file([[C:\right.txt]])) })
+assert_equal(#launched, 0, "missing diff tool launch count")
+assert_notification("error", "GitにDiffツールが設定されていません")
 
 -- Process-start errors are converted to Yazi error notifications.
 reset()
@@ -190,7 +210,7 @@ spawn_result = { child = failed_child, err = nil }
 run({ tab({}, file([[C:\left.txt]])), tab({}, file([[C:\right.txt]])) })
 assert_notification("error", "終了コード 3")
 
--- git difftool --no-index uses exit code 1 for differing files.
+-- A non-zero status from the direct Diff tool remains visible as an error.
 reset()
 local differing_child = {}
 function differing_child:wait()
@@ -198,7 +218,7 @@ function differing_child:wait()
 end
 spawn_result = { child = differing_child, err = nil }
 run({ tab({}, file([[C:\left.txt]])), tab({}, file([[C:\right.txt]])) })
-assert_equal(#notifications, 0, "difference result notification count")
+assert_notification("error", "終了コード 1")
 
 -- Wait failures remain visible as errors.
 reset()
