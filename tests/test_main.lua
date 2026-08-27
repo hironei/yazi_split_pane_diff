@@ -46,10 +46,18 @@ local function url(path, is_regular)
 	})
 end
 
+local function modern_url(path, is_regular)
+	return setmetatable({ path = path, spec = { is_regular = is_regular ~= false } }, {
+		__tostring = function(value)
+			return value.path
+		end,
+	})
+end
+
 local function file(path, opts)
 	opts = opts or {}
 	return {
-		url = url(path, opts.is_regular),
+		url = opts.modern and modern_url(path, opts.is_regular) or url(path, opts.is_regular),
 		cha = {
 			is_dir = opts.is_dir or false,
 			is_orphan = opts.is_orphan or false,
@@ -111,6 +119,16 @@ run({
 })
 assert_equal(launched[1].args[5], [[C:\selected\one.txt]], "selected path")
 
+-- Yazi 26.8.15 selected entries are File objects; use their URL, not the
+-- wrapper's string representation, and preserve one selected file per pane.
+reset()
+run({
+	tab({ file([[C:\selected\File entry\左.txt]], { modern = true }) }, file([[C:\hovered\left.txt]])),
+	tab({ file([[C:\selected\other\右.txt]], { modern = true }) }, file([[C:\hovered\right.txt]])),
+})
+assert_equal(launched[1].args[5], [[C:\selected\File entry\左.txt]], "selected File path")
+assert_equal(launched[1].args[6], [[C:\selected\other\右.txt]], "selected File path in other pane")
+
 -- The active pane is always the first argument.
 reset()
 run({
@@ -151,6 +169,11 @@ run({ tab({ url([[C:\directory]], false) }, file([[C:\left.txt]])), tab({}, file
 assert_equal(#launched, 0, "selected directory launch count")
 assert_notification("warn", "通常ファイルのみ比較できます")
 
+reset()
+run({ tab({ file([[C:\selected\special]], { modern = true, is_regular = false }) }, file([[C:\left.txt]])), tab({}, file([[C:\right.txt]])) })
+assert_equal(#launched, 0, "selected File non-regular launch count")
+assert_notification("warn", "通常ファイルのみ比較できます")
+
 -- Process-start errors are converted to Yazi error notifications.
 reset()
 spawn_result = { child = nil, err = "git not found" }
@@ -166,5 +189,25 @@ end
 spawn_result = { child = failed_child, err = nil }
 run({ tab({}, file([[C:\left.txt]])), tab({}, file([[C:\right.txt]])) })
 assert_notification("error", "終了コード 3")
+
+-- git difftool --no-index uses exit code 1 for differing files.
+reset()
+local differing_child = {}
+function differing_child:wait()
+	return { success = false, code = 1 }, nil
+end
+spawn_result = { child = differing_child, err = nil }
+run({ tab({}, file([[C:\left.txt]])), tab({}, file([[C:\right.txt]])) })
+assert_equal(#notifications, 0, "difference result notification count")
+
+-- Wait failures remain visible as errors.
+reset()
+local wait_failed_child = {}
+function wait_failed_child:wait()
+	error("wait exploded")
+end
+spawn_result = { child = wait_failed_child, err = nil }
+run({ tab({}, file([[C:\left.txt]])), tab({}, file([[C:\right.txt]])) })
+assert_notification("error", "wait exploded")
 
 print("pane-diff.yazi tests passed")

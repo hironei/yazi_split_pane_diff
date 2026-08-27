@@ -11,12 +11,12 @@ The plugin and its usage guide are in [`pane-diff.yazi/README.md`](pane-diff.yaz
 3. Configure a [Git Difftool](pane-diff.yazi/README.md#git-difftool-configuration).
 4. Open two panes, place the cursor on one file in each pane, and press `g`, then `d`.
 
-The detailed manual includes target-selection rules, troubleshooting, known limitations, and the live-validation boundary. Remaining unsupported capabilities are tracked in [Issue #2](https://github.com/hironei/yazi_split_pane_diff/issues/2).
+The detailed manual includes target-selection rules, troubleshooting, known limitations, and the live-validation boundary. Remaining unsupported capabilities are tracked in [Issue #2](https://github.com/hironei/yazi_split_pane_diff/issues/2), while the Yazi 26.8.15 compatibility work is tracked in [Issue #4](https://github.com/hironei/yazi_split_pane_diff/issues/4).
 
 ## Requirements
 
 - Git Bash or WSL, with Yazi and Git running in the same environment
-- Yazi 26.5.6 or later and the matching `ya` version
+- Yazi 26.8.15 and the matching `ya` version (the 26.5.6 API is retained where the older selected-URL shape is naturally compatible)
 - `terrakok/split-tabs.yazi`
 - `git` and a Git-configured external Diff tool available in the same environment's `PATH`
 - Lua only for running the repository's tests; Lua is not required by Yazi at runtime
@@ -58,7 +58,7 @@ git config --global difftool.winmerge.cmd '"C:/Program Files/WinMerge/WinMergeU.
 git config --global difftool.prompt false
 ```
 
-See [`pane-diff.yazi/README.md`](pane-diff.yazi/README.md) for detailed installation steps, configuration, target-selection rules, limitations, and live-validation boundaries.
+See [`pane-diff.yazi/README.md`](pane-diff.yazi/README.md) for detailed installation steps, configuration, target-selection rules, difftool status handling, limitations, and live-validation boundaries.
 
 ```text
 pane-diff.yazi/

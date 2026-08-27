@@ -7,7 +7,7 @@
 | Dependency | Requirement |
 | --- | --- |
 | Environment | Git Bash or WSL, with Yazi and Git running in the same environment |
-| Yazi | 26.5.6 or later |
+| Yazi | 26.8.15 tested baseline; 26.5.6 selected-URL compatibility is retained |
 | `ya` | The same version as Yazi, for installing `split-tabs.yazi` |
 | `terrakok/split-tabs.yazi` | Required for the two-pane view |
 | Git | The same environment's `PATH` contains `git`, with an external difftool configured |
@@ -22,7 +22,7 @@ git --version
 git difftool --tool-help
 ```
 
-The plugin targets the public APIs available in Yazi 26.5.6 and the current `split-tabs.yazi` implementation. Yazi APIs may change; retest the plugin after upgrading.
+The plugin is tested against the public APIs available in Yazi 26.8.15 and the current `split-tabs.yazi` implementation. The small selected-entry adapter also accepts the direct URL shape used by older Yazi versions. Yazi APIs may change; retest the plugin after upgrading.
 
 ## Installation
 
@@ -98,6 +98,8 @@ Each pane uses this priority order:
 
 The plugin does not change the selection state, cursor position, or Yazi's current directory.
 
+On Yazi 26.8.15, selected values are `File` entries and the plugin resolves each entry through its `.url`. Direct URL-shaped selected values from older versions remain supported.
+
 ## Git Difftool configuration
 
 The plugin adds `--no-index` so that files outside a Git repository can also be compared. It starts the equivalent of:
@@ -105,6 +107,8 @@ The plugin adds `--no-index` so that files outside a Git repository can also be 
 ```text
 git difftool --no-index --no-prompt -- <active-file> <other-file>
 ```
+
+For this `--no-index` invocation, exit code 1 can mean that the files differ. The plugin accepts exit codes 0 and 1 as expected results and reports other non-zero exit statuses as process failures. Launch and wait failures are always reported. The child status API cannot distinguish an external tool's independent use of code 1, so only code 1 is treated as the expected result for this fixed Git invocation.
 
 For example, configure WinMerge as Git's difftool:
 
@@ -126,7 +130,7 @@ See [`examples/difftool.md`](../examples/difftool.md) for more examples. Paths a
 - `git` is missing or no difftool is configured: check `git --version` and `git difftool --tool-help`.
 - Process launch failure: check the Diff tool executable's `PATH` and Git's difftool configuration.
 
-The external process is started asynchronously and its exit state is monitored through Yazi's asynchronous API. Launch failures, wait failures, and non-zero exit status are reported as Yazi notifications. Waiting for the Diff tool does not block Yazi's main operation.
+The external process is started asynchronously and its exit state is monitored through Yazi's asynchronous API. Launch failures, wait failures, and non-zero exit statuses other than the expected `--no-index` difference result are reported as Yazi notifications. Waiting for the Diff tool does not block Yazi's main operation.
 
 ## Direct-launch extension
 
@@ -145,7 +149,7 @@ Command("code")
 - The plugin reads the two tabs from Yazi's public `cx.tabs` API and does not modify `split-tabs.yazi` internals. A stable public mapping from `split-tabs.yazi` to physical screen-left/screen-right order is not available, so physical left/right ordering is not guaranteed.
 - Yazi state alone cannot detect a file deleted immediately before comparison. In that case, the Git/Diff tool's exit status is reported as a Yazi notification.
 
-The remaining unsupported capabilities and live acceptance work are tracked in [Issue #2](https://github.com/hironei/yazi_split_pane_diff/issues/2). The Lua mock tests do not cover the real Yazi screen, `split-tabs.yazi`, a configured external Diff GUI, Windows IME, or Windows focus behavior.
+The remaining unsupported capabilities and live acceptance work are tracked in [Issue #2](https://github.com/hironei/yazi_split_pane_diff/issues/2). Compatibility and live acceptance for the Yazi 26.8.15 selected-entry contract are tracked in [Issue #4](https://github.com/hironei/yazi_split_pane_diff/issues/4). The Lua mock tests do not cover the real Yazi screen, `split-tabs.yazi`, a configured external Diff GUI, Windows IME, or Windows focus behavior.
 
 ## Testing
 
