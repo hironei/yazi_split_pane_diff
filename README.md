@@ -1,5 +1,22 @@
 # Yazi Split Pane Diff
 
+> **This repository has moved.** `pane-diff.yazi` is now maintained in [hironei/yazi_plugins](https://github.com/hironei/yazi_plugins), at [`pane-diff.yazi`](https://github.com/hironei/yazi_plugins/tree/main/pane-diff.yazi). New development happens there.
+>
+> Install the plugin from its new location:
+>
+> ```bash
+> ya pkg add hironei/yazi_plugins:pane-diff
+> ```
+>
+> If you installed from this repository, replace the old package:
+>
+> ```bash
+> ya pkg delete hironei/yazi_split_pane_diff:pane-diff
+> ya pkg add hironei/yazi_plugins:pane-diff
+> ```
+>
+> Your keymap does not need to change.
+
 This repository contains `pane-diff.yazi`, a Yazi plugin that sends one selected or hovered target from each of two panes to an external Diff tool configured through Git's `difftool`. Targets may be files or folders.
 
 The plugin and its usage guide are in [`pane-diff.yazi/README.md`](pane-diff.yazi/README.md).
